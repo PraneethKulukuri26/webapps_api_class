@@ -14,6 +14,9 @@ app.use(cors({
 // Middleware to parse JSON
 app.use(express.json());
 
+// Serve static files from public folder
+app.use('/public', express.static('public'));
+
 // Sample data
 let items = [
   { id: 1, name: 'Item 1', description: 'First item' },

@@ -1,6 +1,19 @@
 const express = require('express');
 const router = express.Router();
 
+// Helper function to get full image URL
+const getFullImageUrl = (req, imagePath) => {
+  return `${req.protocol}://${req.get('host')}${imagePath}`;
+};
+
+// Helper function to format product with full image URL
+const formatProductWithFullUrl = (product, req) => {
+  return {
+    ...product,
+    image: getFullImageUrl(req, product.image)
+  };
+};
+
 // E-commerce Products Data
 let products = [
   { 
@@ -10,7 +23,7 @@ let products = [
     price: 79.99,
     category: 'Electronics',
     stock: 50,
-    image: 'https://via.placeholder.com/300x300?text=Headphones'
+    image: '/public/images/wireless_headset.jpg'
   },
   { 
     id: 2, 
@@ -19,7 +32,7 @@ let products = [
     price: 199.99,
     category: 'Electronics',
     stock: 30,
-    image: 'https://via.placeholder.com/300x300?text=Smart+Watch'
+    image: '/public/images/smart_watch.jpg'
   },
   { 
     id: 3, 
@@ -28,7 +41,7 @@ let products = [
     price: 89.99,
     category: 'Sports',
     stock: 100,
-    image: 'https://via.placeholder.com/300x300?text=Running+Shoes'
+    image: '/public/images/running_shoes.jpg'
   },
   { 
     id: 4, 
@@ -37,7 +50,7 @@ let products = [
     price: 129.99,
     category: 'Home & Kitchen',
     stock: 20,
-    image: 'https://via.placeholder.com/300x300?text=Coffee+Maker'
+    image: '/public/images/Coffee_Maker.jpg'
   },
   { 
     id: 5, 
@@ -46,7 +59,7 @@ let products = [
     price: 49.99,
     category: 'Accessories',
     stock: 75,
-    image: 'https://via.placeholder.com/300x300?text=Backpack'
+    image: '/public/images/Backpack.jpg'
   },
   { 
     id: 6, 
@@ -55,7 +68,7 @@ let products = [
     price: 29.99,
     category: 'Sports',
     stock: 150,
-    image: 'https://via.placeholder.com/300x300?text=Yoga+Mat'
+    image: '/public/images/Yoga_Mat.jpg'
   }
 ];
 
@@ -94,7 +107,9 @@ router.get('/products', (req, res) => {
     );
   }
   
-  res.json(filteredProducts);
+  // Format products with full image URLs
+  const productsWithFullUrls = filteredProducts.map(p => formatProductWithFullUrl(p, req));
+  res.json(productsWithFullUrls);
 });
 
 // GET - Get a single product by ID
@@ -103,7 +118,7 @@ router.get('/products/:id', (req, res) => {
   if (!product) {
     return res.status(404).json({ message: 'Product not found' });
   }
-  res.json(product);
+  res.json(formatProductWithFullUrl(product, req));
 });
 
 // GET - Get all categories
