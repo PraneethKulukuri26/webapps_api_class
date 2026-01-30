@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 const ecommerceRoutes = require('./ecommerce/script');
+const db = require('./database');
 const app = express();
 const PORT = 3000;
 
@@ -16,6 +18,9 @@ app.use(express.json());
 
 // Serve static files from public folder
 app.use('/public', express.static('public'));
+
+// Serve login page
+app.use('/login', express.static('login'));
 
 // Sample data
 let items = [
@@ -181,6 +186,143 @@ app.post('/api/users', (req, res) => {
 
 // Use e-commerce routes
 app.use('/api', ecommerceRoutes);
+
+// ============ Authentication Routes ============
+
+// POST - Register a new user
+app.post('/api/register', async (req, res) => {
+  const { username, email, password } = req.body;
+
+  // Validate input
+  if (!username || !email || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Please provide username, email, and password' 
+    });
+  }
+
+  // Validate password length
+  if (password.length < 6) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Password must be at least 6 characters long' 
+    });
+  }
+
+  try {
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert user into database
+    db.run(
+      'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+      [username, email, hashedPassword],
+      function(err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint failed')) {
+            return res.status(409).json({ 
+              success: false, 
+              message: 'Username or email already exists' 
+            });
+          }
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Error creating user' 
+          });
+        }
+
+        res.status(201).json({
+          success: true,
+          message: 'User registered successfully',
+          user: {
+            id: this.lastID,
+            username,
+            email
+          }
+        });
+      }
+    );
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during registration' 
+    });
+  }
+});
+
+// POST - Login user
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+
+  // Validate input
+  if (!username || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Please provide username and password' 
+    });
+  }
+
+  // Find user in database
+  db.get(
+    'SELECT * FROM users WHERE username = ?',
+    [username],
+    async (err, user) => {
+      if (err) {
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Server error during login' 
+        });
+      }
+
+      if (!user) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Invalid username or password' 
+        });
+      }
+
+      try {
+        // Compare password with hashed password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+          return res.status(401).json({ 
+            success: false, 
+            message: 'Invalid username or password' 
+          });
+        }
+
+        res.json({
+          success: true,
+          message: 'Login successful',
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email
+          }
+        });
+      } catch (error) {
+        res.status(500).json({ 
+          success: false, 
+          message: 'Server error during login' 
+        });
+      }
+    }
+  );
+});
+
+// GET - Get all registered users (for testing purposes)
+app.get('/api/registered-users', (req, res) => {
+  db.all('SELECT id, username, email, created_at FROM users', [], (err, users) => {
+    if (err) {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching users' 
+      });
+    }
+    res.json({ success: true, users });
+  });
+});
 
 // Start the server
 app.listen(PORT, () => {
